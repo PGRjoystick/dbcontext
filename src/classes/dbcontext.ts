@@ -60,30 +60,34 @@ class DbContext {
 		if (this.options.inMemory) return;
 		try {
 			let tmpFilePath = this.getTmpPath(this.path);
-			if (fs.existsSync(tmpFilePath)) {
+			try {
 				let tmpFileData = await fs.promises.readFile(tmpFilePath, "utf8");
 				if (this.isJSON(tmpFileData)) {
 					await fs.promises.rename(tmpFilePath, this.path);
 					console.log("Recovered from a crash.");
 				}
+			} catch (e: any) {
+				// Handle error when the temporary file doesn't exist or can't be read
+				console.log(`Failed to recover from a crash. Error: ${e.message}`);
 			}
-			if (!fs.existsSync(this.path)) {
-				this.loaded = true;
-				return;
-			}
-			let data = await fs.promises.readFile(this.path, "utf8");
-			if (!this.isJSON(data)) {
-				this.loaded = true;
-				return;
-			}
-			let json = JSON.parse(data);
-
-			for (let key in json) {
-				if (json[key].rows) {
-					this[key] = new DbSet(json[key].name, json[key].rows);
-				} else {
-					this[key] = json[key];
+			try {
+				let data = await fs.promises.readFile(this.path, "utf8");
+				if (!this.isJSON(data)) {
+					this.loaded = true;
+					return;
 				}
+				let json = JSON.parse(data);
+
+				for (let key in json) {
+					if (json[key].rows) {
+						this[key] = new DbSet(json[key].name, json[key].rows);
+					} else {
+						this[key] = json[key];
+					}
+				}
+			} catch (e: any) {
+				// Handle error when the final file doesn't exist or can't be read
+				console.log(`Failed to load db from ${this.path}. Error: ${e.message}`);
 			}
 		} catch (e: any) {
 			console.log(`Failed to load db from ${this.path}. make sure you have read access to ${this.path}. Error: ${e.message}`);
@@ -92,7 +96,6 @@ class DbContext {
 		await Wait(1000);
 		this.loaded = true;
 	}
-
 	public async save() {
 		if (this.options.inMemory) return;
 		let tmpFilePath = this.getTmpPath(this.path);
@@ -108,15 +111,16 @@ class DbContext {
 			}
 		}
 		try {
-			await fs.promises.writeFile(tmpFilePath, JSON.stringify(result, null, 4));
-			if (fs.existsSync(tmpFilePath)) {
-				let tmpFileData = await fs.promises.readFile(tmpFilePath, "utf8");
-				if (this.isJSON(tmpFileData)) {
-					await fs.promises.rename(tmpFilePath, this.path);
-				}
-			} else {
-				console.log(`Failed to save db to ${this.path}. make sure you have write access to ${this.path}.`);
-			}
+			await fs.promises.writeFile(tmpFilePath, JSON.stringify(result, null, 4))
+				.then(async () => {
+					let tmpFileData = await fs.promises.readFile(tmpFilePath, "utf8");
+					if (this.isJSON(tmpFileData)) {
+						await fs.promises.rename(tmpFilePath, this.path);
+					}
+				})
+				.catch((e: any) => {
+					console.log(`Failed to save db to ${this.path}. make sure you have write access to ${this.path}. Error: ${e.message}}`);
+				});
 		} catch (e: any) {
 			console.log(`Failed to save db to ${this.path}. make sure you have write access to ${this.path}. Error: ${e.message}}`);
 		}
