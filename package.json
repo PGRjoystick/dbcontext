@@ -5,7 +5,10 @@
 	"main": "dist/index.js",
 	"type": "module",
 	"scripts": {
-		"build": "tsc"
+		"start": "npm run build",
+		"startcli": "npm run build",
+		"build": "tsc",
+		"postinstall": "npm run build"
 	},
 	"repository": {
 		"type": "git",
