@@ -7,7 +7,7 @@
 	"scripts": {
 		"start": "npm run build;node examples/chat.js",
 		"startcli": "npm run build;node examples/cli.js",
-		"build": "tsc",
+		"build": "npx tsc",
 		"postinstall": "npm run build"
 	},
 	"repository": {
